@@ -42,10 +42,10 @@ Test
 The test directory contains a test file of the US airline network.
 
 
-Output files
-============
+Output file
+===========
 
-TODO
+Network in JSON format. Nodes have three keys (label, x, y), edges have only the coordinates of the subdivision points.
 
 
 Bibliography
