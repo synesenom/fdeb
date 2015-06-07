@@ -11,7 +11,7 @@ endif
 DEPENDENCIES = main.o graph.o node.o edge.o meerkat_logger.o meerkat_file_manager.o meerkat_argument_manager.o meerkat_vector2.o
 BINARY = fdeb
 
-all: $(BINARY) clean
+all: $(BINARY)
 
 $(BINARY): $(DEPENDENCIES)
 	$(CC) $(LDFLAGS) $^ -o $@ 

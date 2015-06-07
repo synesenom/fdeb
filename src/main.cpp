@@ -7,7 +7,7 @@
 #define DEFAULT_SIZE 600
 
 Graph gGraph;
-int gMaxCycles = 6;
+std::string gOutput = "";
 
 void init( meerkat::mk_vector2 bottomLeft_,
            meerkat::mk_vector2 topRight_ )
@@ -23,7 +23,6 @@ void init( meerkat::mk_vector2 bottomLeft_,
     glHint (GL_LINE_SMOOTH_HINT, GL_NICEST);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable( GL_BLEND );
-    gGraph.iterate();
 }
 
 void display()
@@ -46,26 +45,22 @@ void keyboard( unsigned char key_, int x_, int y_ )
 
 void timer( int var_ )
 {
-    static int i = gGraph.get_I();
-    if( i > 0 )
+    if( gGraph.iterate() > 0 )
+        glutTimerFunc( 10, timer, var_ );
+    else
     {
-        gGraph.iterate();
-        i--;
-    }
-    if( i == 0 )
-    {
-        gGraph.update_cycle();
-        i = gGraph.get_I();
-        if( gGraph.get_C() == gMaxCycles+1 )
+        if( gGraph.update_cycle() > 0 )
         {
-            i = -1;
+            gGraph.add_subvisions();
+            glutTimerFunc( 10, timer, var_ );
+        }
+        else
+        {
             gGraph.smooth();
-            display();
-            return;
+            gGraph.print_json(gOutput);
         }
     }
     display();
-    glutTimerFunc( 100, timer, var_ );
 }
 
 int main( int argc_, char **argv_ )
@@ -77,6 +72,8 @@ int main( int argc_, char **argv_ )
                           "File containing node positions", "", MK_REQUIRED);
     a.add_argument_entry( "edges", MK_VALUE, "--edges", "-e",
                           "File containing edges", "", MK_REQUIRED);
+    a.add_argument_entry( "output", MK_VALUE, "--output", "-o",
+                          "Output file", "", MK_REQUIRED);
     a.add_argument_entry( "K", MK_VALUE, "--K", "-K",
                           "Edge stiffness [0.1]", "0.1", MK_OPTIONAL);
     a.add_argument_entry( "S", MK_VALUE, "--S", "-S",
@@ -93,54 +90,88 @@ int main( int argc_, char **argv_ )
                           "Edge weight threshold [0.0]", "0.0", MK_OPTIONAL);
     a.add_argument_entry( "epsilon", MK_VALUE, "--epsilon", "-E",
                           "Lowest interaction distance [1e-4]", "0.0001", MK_OPTIONAL);
-    a.add_argument_entry( "gravitation exponent", MK_VALUE, "--gravitation-exponent", "-ge",
-                          "Gravitation exponent [1.0]", "1.0", MK_OPTIONAL);
     a.add_argument_entry( "gravitation center x", MK_VALUE, "--gravitation-center-x", "-gcx",
-                          "Gravitation center x coordinate [0.0]", "0.0", MK_OPTIONAL);
+                          "Gravitation center x coordinate [0.0]. If set, gravitation is turned on",
+                          "0.0", MK_OPTIONAL);
     a.add_argument_entry( "gravitation center y", MK_VALUE, "--gravitation-center-y", "-gcy",
-                          "Gravitation center y coordinate [0.0]", "0.0", MK_OPTIONAL);
-    a.add_argument_entry( "opacity", MK_VALUE, "--opacity", "-o",
-                          "Opacity of edges", "0.3", MK_OPTIONAL);
+                          "Gravitation center y coordinate [0.0]. If set, gravitation is turned on",
+                          "0.0", MK_OPTIONAL);
+    a.add_argument_entry( "gravitation exponent", MK_VALUE, "--gravitation-exponent", "-ge",
+                          "Gravitation exponent [-2.0]. If set, gravitation is turned on",
+                          "1.0", MK_OPTIONAL);
+    a.add_argument_entry( "visualization", MK_FLAG, "--visualize", "-v",
+                          "Enables real-time visualization [off]", "0", MK_OPTIONAL);
+    a.add_argument_entry( "transparency", MK_VALUE, "--transparency", "-t",
+                          "Transparency of edges", "0.3", MK_OPTIONAL);
     a.read_arguments(argc_, argv_);
     a.show_settings();
 
     // set params and read graph
     gGraph.set_algorithm_params( a.get_double_argument("K"),
-                                 a.get_double_argument("I"),
+                                 a.get_int_argument("cycles"),
+                                 a.get_int_argument("I"),
                                  a.get_double_argument("compat"),
                                  a.get_double_argument("sigma"));
     gGraph.set_network_params( a.get_double_argument("weight threshold") );
     gGraph.set_physics_params( a.get_double_argument("S"),
                                a.get_double_argument("epsilon"),
+                               meerkat::mk_vector2(a.get_double_argument("gravitation center x"),
+                                                   a.get_double_argument("gravitation center y")),
                                a.get_double_argument("gravitation exponent") );
-    gGraph.set_graphics_params( a.get_double_argument("opacity") );
-    gMaxCycles = a.get_int_argument("cycles");
+    if( a.is_set("gravitation center x") ||
+            a.is_set("gravitation center y") ||
+            a.is_set("gravitation exponent") )
+        gGraph.enable_gravitation();
+
+    // Read graph
     gGraph.read(a.get_string_argument("nodes"),
                 a.get_string_argument("edges"));
 
-    // get dimensions
-    meerkat::mk_vector2 bottomLeft, topRight;
-    gGraph.get_bounding_box(bottomLeft, topRight, 20.0);
-    double gWidth = topRight.x() - bottomLeft.x();
-    double gHeight = topRight.y() - bottomLeft.y();
+    // Get output name
+    gOutput = a.get_string_argument("output");
 
-    // get window size
-    int wWidth = DEFAULT_SIZE, wHeight = DEFAULT_SIZE;
-    if( gWidth > gHeight )
-        wHeight = int(wWidth * gHeight/gWidth);
+    // If visualization is enabled
+    if( a.is_set("visualization") )
+    {
+        // Set graphical parameters
+        gGraph.set_graphics_params( a.get_double_argument("transparency") );
+
+        // Get bounding box
+        meerkat::mk_vector2 bottomLeft, topRight;
+        gGraph.get_bounding_box(bottomLeft, topRight, 20.0);
+        double gWidth = topRight.x() - bottomLeft.x();
+        double gHeight = topRight.y() - bottomLeft.y();
+
+        // Init GLUT
+        int wWidth = DEFAULT_SIZE, wHeight = DEFAULT_SIZE;
+        if( gWidth > gHeight )
+            wHeight = int(wWidth * gHeight/gWidth);
+        else
+            wWidth = int(wHeight * gWidth/gHeight);
+        glutInit( &argc_, argv_ );
+        glutInitDisplayMode( GLUT_RGB | GLUT_DOUBLE );
+        glutInitWindowSize( wWidth, wHeight );
+        glutInitWindowPosition( 10, 100 );
+        glutCreateWindow( "fdeb" );
+        init(bottomLeft, topRight);
+
+        // Increase cycle index and enter main loop
+        glutDisplayFunc( display );
+        glutKeyboardFunc( keyboard );
+        glutTimerFunc( 100, timer, 1 );
+        glutMainLoop();
+    }
+    // Otherwise, just perform edge bundling
     else
-        wWidth = int(wHeight * gWidth/gHeight);
-
-    glutInit( &argc_, argv_ );
-    glutInitDisplayMode( GLUT_RGB | GLUT_DOUBLE );
-    glutInitWindowSize( wWidth, wHeight );
-    glutInitWindowPosition( 10, 100 );
-    glutCreateWindow( "fdeb" );
-    init(bottomLeft, topRight);
-    glutDisplayFunc( display );
-    glutKeyboardFunc( keyboard );
-    glutTimerFunc( 100, timer, 1 );
-    glutMainLoop();
+    {
+        do
+        {
+            while( gGraph.iterate() > 0 );
+            gGraph.add_subvisions();
+        } while( gGraph.update_cycle() > 0 );
+        gGraph.smooth();
+        gGraph.print_json(gOutput);
+    }
 
     return 0;
 }

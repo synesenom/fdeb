@@ -58,6 +58,9 @@ namespace meerkat {
     // print arguments
     void show_settings() const;
 
+    // check if argument is set
+    bool is_set( const char* argName_ );
+
     // query argument
     int get_int_argument( const char *argName_ );
     double get_double_argument( const char *argName_ );

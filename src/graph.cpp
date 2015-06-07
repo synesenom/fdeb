@@ -3,16 +3,23 @@
 Graph::Graph()
 {
     _log.tag("Graph");
-    _K = 0.1;
-    _S = 0.1;
-    _I = 90;
-    _C = 1;
-    _compat = 0.6;
-    _sigma = 0.2;
-    _weightThreshold = 0.0;
-    _epsilon = 1e-4;
 
-    _alpha = 0.3;
+    _K = 0.1;
+    _I = 90;
+    _iter = _I;
+    _cycles = 6;
+    _compatibilityThreshold = 0.6;
+    _smoothWidth = 30.0;
+
+    _S = 0.3;
+    _edgeDistance = 1e-4;
+    _gravitationIsOn = false;
+    _gravitationCenter.set(0.0, 0.0);
+    _gravitationExponent = -2.0;
+
+    _weightThreshold = 0.0;
+
+    _edgeOpacity = 0.1;
 }
 
 void Graph::set_network_params(double weightThreshold_)
@@ -20,34 +27,35 @@ void Graph::set_network_params(double weightThreshold_)
     _weightThreshold = weightThreshold_;
 }
 
-void Graph::set_algorithm_params(double K_, double I0_, double compat_, double sigma_)
+void Graph::set_algorithm_params(double K_, int cycles_, int I0_, double compat_, double sigma_)
 {
     _K = K_;
+    _cycles = cycles_;
     _I = I0_;
-    _compat = compat_;
-    _sigma = sigma_;
+    _iter = _I;
+    _compatibilityThreshold = compat_;
+    _smoothWidth = sigma_;
 }
 
-void Graph::set_physics_params(double S0_, double epsilon_, double beta_)
+void Graph::set_physics_params(double S0_, double edgeDistance_,
+                               meerkat::mk_vector2 gravCenter_,
+                               double gravExponent_)
 {
     _S = S0_;
-    _epsilon = epsilon_;
-    _beta = beta_;
+    _edgeDistance = edgeDistance_;
+    _gravitationCenter = gravCenter_;
+    _gravitationExponent = gravExponent_;
+}
+
+void Graph::enable_gravitation()
+{
+    _log.i("enable_gravitation", "gravitation is enabled");
+    _gravitationIsOn = true;
 }
 
 void Graph::set_graphics_params(double alpha_)
 {
-    _alpha = alpha_;
-}
-
-int Graph::get_I()
-{
-    return _I;
-}
-
-int Graph::get_C()
-{
-    return _C;
+    _edgeOpacity = alpha_;
 }
 
 void Graph::read(std::string nodesFile_, std::string edgesFile_)
@@ -93,13 +101,9 @@ void Graph::read(std::string nodesFile_, std::string edgesFile_)
         sscanf(line, "%s %s %lg", src, dst, &w);
         if( w > _weightThreshold )
         {
-            _edges.push_back(Edge());
-            _edges.back()._start.set( _nodes[std::string(src)]._pos.x(), _nodes[std::string(src)]._pos.y() );
-            _edges.back()._end.set( _nodes[std::string(dst)]._pos.x(), _nodes[std::string(dst)]._pos.y() );
-            _edges.back()._width = w + 1.0;
+            _edges.push_back(Edge(_nodes[std::string(src)]._pos,
+                             _nodes[std::string(dst)]._pos, w + 1.0));
             wmax = w > wmax ? w : wmax;
-            _edges.back().arrange_direction();
-            _edges.back().add_subdivisions();
         }
         _nodes[std::string(src)]._degree++;
         _nodes[std::string(dst)]._degree++;
@@ -154,16 +158,14 @@ void Graph::build_compatibility_lists()
     {
         for( int j=i+1; j<edgesNum; j++ )
         {
-            comp = angle_compatilibity(_edges[i], _edges[j])
-                    * scale_compatibility(_edges[i], _edges[j])
-                    * position_compatibility(_edges[i], _edges[j])
-                    * visibility_compability(_edges[i], _edges[j]);
-            if( comp >= _compat )
+            comp = Edge::angle_compatilibity(_edges[i], _edges[j])
+                    * Edge::scale_compatibility(_edges[i], _edges[j])
+                    * Edge::position_compatibility(_edges[i], _edges[j])
+                    * Edge::visibility_compability(_edges[i], _edges[j]);
+            if( comp >= _compatibilityThreshold )
             {
                 _edges[i]._compatibleEdges.push_back(j);
-                _edges[i]._compatibilities.push_back(comp);
                 _edges[j]._compatibleEdges.push_back(i);
-                _edges[j]._compatibilities.push_back(comp);
                 compEdgePairs++;
             }
         }
@@ -171,7 +173,7 @@ void Graph::build_compatibility_lists()
     _log.i("build_compatibility_lists", "compatible edge pairs: %i", compEdgePairs);
 }
 
-void Graph::iterate()
+int Graph::iterate()
 {
     int edgesNum = (int)_edges.size();
     std::vector<std::vector<meerkat::mk_vector2> > forces(
@@ -191,27 +193,39 @@ void Graph::iterate()
         for( int j=0; j<compatibleEdgesNum; j++ )
             _edges[i].add_electrostatic_forces(forces[i],
                                                _edges[_edges[i]._compatibleEdges[j]],
-                                               _epsilon);
+                                               _edgeDistance);
     }
 
     // gravitation
-    /*meerkat::mk_vector2 center(0.0, 0.0);
-    for( int i=0; i<edgesNum; i++ )
-        _edges[i].add_gravitational_forces(forces[i], center, _beta);
-*/
+    if( _gravitationIsOn )
+    {
+        for( int i=0; i<edgesNum; i++ )
+            _edges[i].add_gravitational_forces(forces[i],
+                                               _gravitationCenter,
+                                               _gravitationExponent);
+    }
+
     // update edges
     for( int i=0; i<edgesNum; i++ )
         _edges[i].update(forces[i], _S);
+
+    _iter--;
+    return _iter;
 }
 
-void Graph::update_cycle()
+int Graph::update_cycle()
 {
     _log.i("update_cycle", "updating parameters");
     _S *= 0.5;
     _I = 2*_I/3;
-    _C++;
+    _iter = _I;
+    _cycles--;
+    return _cycles;
+}
 
-    _log.i("update_cycle", "subdividing edges");
+void Graph::add_subvisions()
+{
+    _log.i("add_subdivisions", "subdividing edges");
     int edgesNum = (int)_edges.size();
     for( int i=0; i<edgesNum; i++ )
         _edges[i].add_subdivisions();
@@ -222,7 +236,7 @@ void Graph::smooth()
     _log.i("smooth", "applying Gaussian smoothing");
     int edgesNum = (int)_edges.size();
     for( int i=0; i<edgesNum; i++ )
-        _edges[i].smooth(_sigma);
+        _edges[i].smooth(_smoothWidth);
     _log.i("smooth", "done");
 }
 
@@ -231,7 +245,7 @@ void Graph::draw()
     // draw edges
     int numEdges = (int)_edges.size();
     for( int i=0; i<numEdges; i++ )
-        _edges[i].draw(_alpha);
+        _edges[i].draw(_edgeOpacity);
 
     // draw nodes
     for( std::map<std::string, Node>::iterator it = _nodes.begin();
@@ -239,3 +253,62 @@ void Graph::draw()
          it++ )
         it->second.draw();
 }
+
+void Graph::print_json(std::string output_)
+{
+    FILE *p = fopen(output_.c_str(), "w");
+    if( p == NULL )
+    {
+        _log.e("print_json", "could not open output file");
+        exit(0);
+    }
+
+    // nodes
+    fprintf( p, "{\n  \"nodes\" : [\n" );
+    int numNodes = (int)_nodes.size(), nodeId = 0;
+    for( std::map<std::string, Node>::iterator it = _nodes.begin();
+         it != _nodes.end();
+         it++ )
+    {
+        fprintf( p, "    {\n" );
+        fprintf( p, "      \"label\" : \"%s\",\n", it->first.c_str() );
+        fprintf( p, "      \"x\" : %lg,\n", it->second._pos.x() );
+        fprintf( p, "      \"y\" : %lg\n", it->second._pos.y() );
+        if( nodeId < numNodes-1 )
+            fprintf( p, "    },\n");
+        else
+            fprintf( p, "    }\n" );
+        nodeId++;
+    }
+    fprintf( p, "  ],\n" );
+
+    // edges
+    fprintf( p, "  \"edges\" : [\n" );
+    int numEdges = (int)_edges.size(), len;
+    for( int i=0; i<numEdges; i++ )
+    {
+        fprintf( p, "    {\n" );
+        fprintf( p, "      \"coords\" : [\n" );
+        fprintf( p, "        { \"x\" : %lg, \"y\" : %lg },\n",
+                 _edges[i]._start.x(), _edges[i]._start.y() );
+        len = (int)_edges[i]._subdivs.size();
+        for( int j=0; j<len; j++ )
+        {
+            fprintf( p, "        { \"x\" : %lg, \"y\" : %lg },\n",
+                     _edges[i]._subdivs[j].x(), _edges[i]._subdivs[j].y() );
+        }
+        fprintf( p, "        { \"x\" : %lg, \"y\" : %lg }\n",
+                 _edges[i]._end.x(), _edges[i]._end.y() );
+        fprintf( p, "      ]\n" );
+        if( i < numEdges-1 )
+            fprintf( p, "    },\n");
+        else
+            fprintf( p, "    }\n" );
+    }
+    fprintf( p, "  ]\n" );
+    fprintf( p, "}" );
+    fclose( p );
+
+    _log.i("print_json", "network is written in '%s'", output_.c_str());
+}
+

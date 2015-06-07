@@ -72,21 +72,27 @@ void meerkat::mk_argument_manager::print_help() const
  * @default_    default value
  * @priority_   whether the argument is required (MK_REQUIRED) or optional (MK_OPTIONAL)
  */
-void meerkat::mk_argument_manager::add_argument_entry( const char *name_, int type_, const char *longKey_, const char *shortKey_, const char *helpEntry_, const char *default_, int priority_ )
+void meerkat::mk_argument_manager::add_argument_entry( const char *name_,
+                                                       int type_,
+                                                       const char *longKey_,
+                                                       const char *shortKey_,
+                                                       const char *helpEntry_,
+                                                       const char *default_,
+                                                       int priority_ )
 {
-  _argName.push_back( std::string(name_) );
-	_argType.push_back( type_ );
-  _argHelpEntry.push_back( std::string(helpEntry_) );
-  _argLongKey.push_back( std::string(longKey_) );
-  _argShortKey.push_back( std::string(shortKey_) );
-  _argValue.push_back( "" );
-	if( type_ == MK_VALUE )
-	  _argDefaultValue.push_back( std::string(default_) );
-	else
-		_argDefaultValue.push_back( std::string("0") );
-  _argStatus.push_back( MK_UNSET );
-  _argPriority.push_back( priority_ );
-  _numArgs++;
+    _argName.push_back( std::string(name_) );
+    _argType.push_back( type_ );
+    _argHelpEntry.push_back( std::string(helpEntry_) );
+    _argLongKey.push_back( std::string(longKey_) );
+    _argShortKey.push_back( std::string(shortKey_) );
+    _argValue.push_back( "" );
+    if( type_ == MK_VALUE )
+      _argDefaultValue.push_back( std::string(default_) );
+    else
+        _argDefaultValue.push_back( std::string("0") );
+    _argStatus.push_back( MK_UNSET );
+    _argPriority.push_back( priority_ );
+    _numArgs++;
 }
 
 
@@ -185,6 +191,18 @@ void meerkat::mk_argument_manager::show_settings() const
     }
   }
   printf( "\n" );
+}
+
+bool meerkat::mk_argument_manager::is_set( const char *argName_ )
+{
+    for(int i=0; i<_numArgs; i++)
+    {
+      if( strcmp( _argName[i].c_str(), argName_ ) == 0 )
+        return _argStatus[i] == MK_SET;
+    }
+
+    printf( "is_set error: no such argument.\n" );
+    exit(0);
 }
 
 

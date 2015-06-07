@@ -1,13 +1,13 @@
 #include "edge.hpp"
 
-meerkat::mk_vector2 center(meerkat::mk_vector2 &p1_, meerkat::mk_vector2 &p2_)
+meerkat::mk_vector2 Edge::center(meerkat::mk_vector2 &p1_, meerkat::mk_vector2 &p2_)
 {
     return (p1_+p2_)/2.0;
 }
 
-meerkat::mk_vector2 project(meerkat::mk_vector2 &point_,
-                            meerkat::mk_vector2 &lineStart_,
-                            meerkat::mk_vector2 &lineEnd_)
+meerkat::mk_vector2 Edge::project(meerkat::mk_vector2 &point_,
+                                  meerkat::mk_vector2 &lineStart_,
+                                  meerkat::mk_vector2 &lineEnd_)
 {
     double L = (lineStart_-lineEnd_).length();
     double r = ((lineStart_.y()-point_.y())*(lineStart_.y()-lineEnd_.y())
@@ -32,24 +32,31 @@ void Edge::add_subdivisions()
         _subdivs.assign( 1, center(_start, _end) );
     else
     {
-        int newSubdivsNum = 2 * oldSubdivsNum + 1, subdivIndex = 0;
+        int newSubdivsNum = 2 * oldSubdivsNum, subdivIndex = 0, v1Index = -1, v2Index = 0;
+        double segmentLength = double(oldSubdivsNum+1)/double(newSubdivsNum+1);
         std::vector<meerkat::mk_vector2> subdivisions(newSubdivsNum, meerkat::mk_vector2());
-        // first division point
-        subdivisions[subdivIndex] = center(_start, _subdivs[0]);
-        subdivIndex++;
-        // inner division points
-        for( int i=0; i<oldSubdivsNum-1; i++ )
+        meerkat::mk_vector2 v1 = _start, v2 = _subdivs[0];
+        double r = segmentLength;
+        while( subdivIndex < newSubdivsNum )
         {
-            subdivisions[subdivIndex] = _subdivs[i];
-            subdivisions[subdivIndex+1] = center(_subdivs[i], _subdivs[i+1]);
-            subdivIndex += 2;
-        }
-        subdivisions[subdivIndex] = _subdivs[oldSubdivsNum-1];
-        subdivIndex++;
-        // last division point
-        subdivisions[subdivIndex] = center(_subdivs[oldSubdivsNum-1], _end);
+            subdivisions[subdivIndex] = v1 + (v2 - v1) * r;
+            subdivIndex++;
+            if( r + segmentLength > 1.0 )
+            {
+                r = segmentLength - (1.0 - r);
+                v1Index++;
+                v2Index++;
 
-        // assign new subdivisions
+                if( v1Index >= 0 )
+                    v1 = _subdivs[v1Index];
+                if( v2Index < oldSubdivsNum )
+                    v2 = _subdivs[v2Index];
+                else
+                    v2 = _end;
+            }
+            else
+                r += segmentLength;
+        }
         _subdivs = subdivisions;
     }
 }
@@ -101,7 +108,9 @@ void Edge::add_electrostatic_forces(std::vector<meerkat::mk_vector2> &forces_,
     }
 }
 
-void Edge::add_gravitational_forces(std::vector<meerkat::mk_vector2> &forces_, meerkat::mk_vector2 &center_, double beta_)
+void Edge::add_gravitational_forces(std::vector<meerkat::mk_vector2> &forces_,
+                                    meerkat::mk_vector2 &center_,
+                                    double exponent_)
 {
     int len = (int)_subdivs.size();
     meerkat::mk_vector2 dist;
@@ -111,7 +120,7 @@ void Edge::add_gravitational_forces(std::vector<meerkat::mk_vector2> &forces_, m
     {
         dist = (center_ - _subdivs[i]);
         dlen = dist.length();
-        forces_[i] += dist * 0.05 * pow(dlen+1.0, beta_);
+        forces_[i] += dist * 0.1 * pow(dlen+1.0, exponent_);
     }
 }
 
@@ -163,7 +172,7 @@ void Edge::smooth(double sigma_)
 void Edge::draw(double alpha_)
 {
     glLineWidth( _width );
-    glColor4f( 59./255., 89./255., 152./255., alpha_ );
+    glColor4f( 212./255., 0./255., 0./255., alpha_ );
     int len = (int)_subdivs.size();
 
     glBegin( GL_LINES );
@@ -180,16 +189,9 @@ void Edge::draw(double alpha_)
     glVertex2d( _subdivs[len-1].x(), _subdivs[len-1].y() );
     glVertex2d( _end.x(), _end.y() );
     glEnd();
-
-    /*glColor3f(0, 0, 0);
-    glPointSize(1);
-    glBegin(GL_POINTS);
-    for( int i=0; i<len; i++ )
-        glVertex2d( _subdivs[i].x(), _subdivs[i].y() );
-    glEnd();*/
 }
 
-double edge_visibility(Edge &edge1_, Edge &edge2_)
+double Edge::edge_visibility(Edge &edge1_, Edge &edge2_)
 {
     meerkat::mk_vector2 I0 = project(edge1_._start, edge2_._start, edge2_._end);
     meerkat::mk_vector2 I1 = project(edge1_._end, edge2_._start, edge2_._end);
@@ -198,58 +200,52 @@ double edge_visibility(Edge &edge1_, Edge &edge2_)
     return std::max(0.0, 1.0-2.0*(midP-midI).length()/(I0-I1).length());
 }
 
-double angle_compatilibity(Edge &edge1_, Edge &edge2_)
+double Edge::angle_compatilibity(Edge &edge1_, Edge &edge2_)
 {
     meerkat::mk_vector2 v1 = edge1_.vector();
     meerkat::mk_vector2 v2 = edge2_.vector();
     v1.normalize();
     v2.normalize();
-    double ret = fabs(v1 * v2);
-    //printf("angle: %lg\n", ret);
-    return ret;
+    return fabs(v1 * v2);;
 }
 
-double scale_compatibility(Edge &edge1_, Edge &edge2_)
+double Edge::scale_compatibility(Edge &edge1_, Edge &edge2_)
 {
     double l1 = edge1_.vector().length();
     double l2 = edge2_.vector().length();
     double lavg = (l1 + l2) / 2.0;
-    double ret;
     if( lavg > EPSILON )
-        ret = 2.0 / (lavg/std::min(l1, l2) + std::max(l1, l2)/lavg);
+        return 2.0 / (lavg/std::min(l1, l2) + std::max(l1, l2)/lavg);
     else
-        ret = 0.0;
-    //printf("scale: %lg\n", ret);
-    return ret;
+        return 0.0;
 }
 
-double position_compatibility(Edge &edge1_, Edge &edge2_)
+double Edge::position_compatibility(Edge &edge1_, Edge &edge2_)
 {
     double lavg = (edge1_.vector().length()+edge2_.vector().length()) / 2.0;
-    double ret;
     if( lavg > EPSILON )
     {
         meerkat::mk_vector2 mid1 = center(edge1_._start, edge1_._end);
         meerkat::mk_vector2 mid2 = center(edge2_._start, edge2_._end);
-        ret = lavg / (lavg + (mid1-mid2).length());
+        return lavg / (lavg + (mid1-mid2).length());
     }
     else
-        ret = 0.0;
-    //printf("position: %lg\n", ret);
-    return ret;
+        return 0.0;
 }
 
-double visibility_compability(Edge &edge1_, Edge &edge2_)
+double Edge::visibility_compability(Edge &edge1_, Edge &edge2_)
 {
-    double ret = std::min(edge_visibility(edge1_, edge2_),
-                          edge_visibility(edge2_, edge1_));
-    //printf("visibility: %lg\n", ret);
-    return ret;
+    return std::min(edge_visibility(edge1_, edge2_),
+                    edge_visibility(edge2_, edge1_));
 }
 
-Edge::Edge()
+Edge::Edge(meerkat::mk_vector2 &start_, meerkat::mk_vector2 &end_, double width_)
 {
-    _width = 0.1;
+    _start = start_;
+    _end = end_;
+    _width = width_;
+    arrange_direction();
+    add_subdivisions();
 }
 
 

@@ -19,7 +19,7 @@ void Node::draw()
     if( _degree == 0 )
         glColor3f( 0.95, 0.95, 0.95 );
     else
-        glColor3f( 0.0, 0.0, 0.0 );
+        glColor3f( 0./255., 180./255., 240./255. );
     glBegin( GL_TRIANGLE_FAN );
     glVertex2d( _pos.x(), _pos.y() );
     for( int i=0; i<=NUM_SEGMENTS; i++ )
