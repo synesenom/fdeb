@@ -74,7 +74,7 @@ int main( int argc_, char **argv_ )
     a.add_argument_entry( "edges", MK_VALUE, "--edges", "-e",
                           "File containing edges", "", MK_REQUIRED);
     a.add_argument_entry( "json", MK_VALUE, "--json", "-json",
-                          "Prints result in a JSON file [unset].", "", MK_OPTIONAL);
+                          "Prints result in a JSON file [unset]", "", MK_OPTIONAL);
     a.add_argument_entry( "K", MK_VALUE, "--K", "-K",
                           "Edge stiffness [0.1]", "0.1", MK_OPTIONAL);
     a.add_argument_entry( "S", MK_VALUE, "--S", "-S",
@@ -87,8 +87,14 @@ int main( int argc_, char **argv_ )
                           "Max number of cycles [5]", "5", MK_OPTIONAL);
     a.add_argument_entry( "sigma", MK_VALUE, "--sigma", "-s",
                           "Smoothing width [3]", "3", MK_OPTIONAL);
-    a.add_argument_entry( "weight threshold", MK_VALUE, "--weight-threshold", "-w",
-                          "Edge weight threshold [0.0]", "0.0", MK_OPTIONAL);
+    a.add_argument_entry( "edge weight", MK_VALUE, "--edge-weight", "-ew",
+                          "Edge weight threshold for edge filtering [unset]."
+                          "Edges with a weight below the given value are dropped",
+                          "-1.0", MK_OPTIONAL);
+    a.add_argument_entry( "edge percentage", MK_VALUE, "--edge-percentage", "-ep",
+                          "Edge percentage for edge filtering [unset]."
+                          "The given fraction of edges among the strongest ones are kept",
+                          "-1.0", MK_OPTIONAL);
     a.add_argument_entry( "epsilon", MK_VALUE, "--epsilon", "-E",
                           "Lowest interaction distance [1e-4]", "0.0001", MK_OPTIONAL);
     a.add_argument_entry( "gravitation center x", MK_VALUE, "--gravitation-center-x", "-gcx",
@@ -113,7 +119,8 @@ int main( int argc_, char **argv_ )
                                  a.get_int_argument("I"),
                                  a.get_double_argument("compat"),
                                  a.get_double_argument("sigma"));
-    gGraph.set_network_params( a.get_double_argument("weight threshold") );
+    gGraph.set_network_params( a.get_double_argument("edge weight"),
+                               a.get_double_argument("edge percentage") );
     gGraph.set_physics_params( a.get_double_argument("S"),
                                a.get_double_argument("epsilon"),
                                meerkat::mk_vector2(a.get_double_argument("gravitation center x"),

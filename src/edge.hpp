@@ -167,4 +167,6 @@ struct Edge
     static double visibility_compability(Edge &edge1_, Edge &edge2_);
 };
 
+int compare_edges( Edge edge1_, Edge edge2_ );
+
 #endif // EDGE_HPP

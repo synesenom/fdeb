@@ -1,5 +1,6 @@
 #include "edge.hpp"
 
+
 Edge::Edge(std::string sourceLabel_, std::string targetLabel_,
            meerkat::mk_vector2 &start_, meerkat::mk_vector2 &end_,
            double width_)
@@ -252,6 +253,13 @@ double Edge::visibility_compability(Edge &edge1_, Edge &edge2_)
                     edge_visibility(edge2_, edge1_));
 }
 
-
-
+int compare_edges( Edge edge1_,  Edge edge2_ )
+{
+    if( edge1_._width < edge2_._width )
+        return 1;
+    else if( edge1_._width > edge2_._width )
+        return -1;
+    else
+        return 0;
+}
 

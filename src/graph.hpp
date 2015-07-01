@@ -38,7 +38,8 @@ private:
     double _gravitationExponent;                // Gravitation exponent.
 
     // Network parameters
-    double _weightThreshold;                    // Threshold on edge weights (for dense graphs).
+    double _edgeWeightThreshold;                // Threshold on edge weights (for dense graphs).
+    double _edgePercentageThreshold;            // Percentage of edges being kept (for dense graphs).
 
     // Graphics parameters
     double _edgeOpacity;                        // Opacity.
@@ -54,7 +55,7 @@ public:
      * @brief set_network_params Sets network parameters.
      * @param weightThreshold_ Threshold of edge weights.
      */
-    void set_network_params(double weightThreshold_);
+    void set_network_params(double edgeWeightThreshold_, double edgePercentageThreshold_);
 
     /**
      * @brief set_algorithm_params Sets algorithm parameters.

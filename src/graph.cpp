@@ -17,14 +17,18 @@ Graph::Graph()
     _gravitationCenter.set(0.0, 0.0);
     _gravitationExponent = -2.0;
 
-    _weightThreshold = 0.0;
+    _edgeWeightThreshold = -1.0;
+    _edgePercentageThreshold = -1.0;
 
     _edgeOpacity = 0.1;
 }
 
-void Graph::set_network_params(double weightThreshold_)
+void Graph::set_network_params(double edgeWeightThreshold_, double edgePercentageThreshold_)
 {
-    _weightThreshold = weightThreshold_;
+    if( edgeWeightThreshold_ > 0.0 )
+        _edgeWeightThreshold = edgeWeightThreshold_;
+    else if( edgePercentageThreshold_ > 0.0 )
+        _edgePercentageThreshold = edgePercentageThreshold_;
 }
 
 void Graph::set_algorithm_params(double K_, int cycles_, int I0_, double compat_, double sigma_)
@@ -94,25 +98,59 @@ void Graph::read(std::string nodesFile_, std::string edgesFile_)
     f.get_text(line, 1024);
     char src[128], dst[128];
     double w, wmax = 0.0;
+    // read in all edges first
+    std::vector<Edge> allEdges;
     for( int r=0; r<rows-1; r++)
     {
         f.get_text(line, 1024);
         w = 1.0;
         sscanf(line, "%s %s %lg", src, dst, &w);
-        if( w > _weightThreshold )
-        {
-            _edges.push_back(Edge(std::string(src), std::string(dst),
-                                  _nodes[std::string(src)]._pos,
-                                  _nodes[std::string(dst)]._pos, w + 1.0));
-            wmax = w > wmax ? w : wmax;
-        }
-        _nodes[std::string(src)]._degree++;
-        _nodes[std::string(dst)]._degree++;
+        allEdges.push_back(Edge(std::string(src), std::string(dst),
+                                _nodes[std::string(src)]._pos,
+                                _nodes[std::string(dst)]._pos, w + 1.0));
     }
+    std::sort(allEdges.begin(), allEdges.end(), compare_edges );
+    wmax = allEdges[0]._width;
+    // filter out edges by weight
+    if( _edgeWeightThreshold > 0.0 )
+    {
+        for( int i=0; i<rows-1; i++ )
+        {
+            if( allEdges[i]._width > _edgeWeightThreshold )
+            {
+                _edges.push_back(allEdges[i]);
+                _nodes[allEdges[i]._sourceLabel]._degree++;
+                _nodes[allEdges[i]._targetLabel]._degree++;
+            }
+        }
+    }
+    // filter out edges by percentage
+    else if( _edgePercentageThreshold > 0.0 )
+    {
+        int nEdges = int(_edgePercentageThreshold * (rows-1) / 100);
+        for( int i=0; i<nEdges; i++ )
+        {
+            _edges.push_back(allEdges[i]);
+            _nodes[allEdges[i]._sourceLabel]._degree++;
+            _nodes[allEdges[i]._targetLabel]._degree++;
+        }
+    }
+    // if no filter option set, take all edges
+    else
+    {
+        for( int i=0; i<rows-1; i++ )
+        {
+            _edges.push_back(allEdges[i]);
+            _nodes[allEdges[i]._sourceLabel]._degree++;
+            _nodes[allEdges[i]._targetLabel]._degree++;
+        }
+    }
+    // normalize edge widths
     int edgesNum = (int)_edges.size();
     for( int i=0; i<edgesNum; i++ )
         _edges[i]._width *= 1.0 / (wmax+1.0);
     _log.i("read", "number of edges: %i", (int)_edges.size());
+    allEdges.clear();
     f.close();
 
     // build compability lists
@@ -172,9 +210,9 @@ void Graph::build_compatibility_lists()
         }
 
         if( edgesNum >= 100 && i%(edgesNum/100) == 0 )
-            _log.i( "build_compatibility_lists", "%i%%", i/(edgesNum/100) );
+            _log.i( "build_compatibility_lists", "%i%% done, compatible edges: %i",
+                    i/(edgesNum/100), compEdgePairs );
     }
-    _log.i("build_compatibility_lists", "compatible edge pairs: %i", compEdgePairs);
 }
 
 int Graph::iterate()
