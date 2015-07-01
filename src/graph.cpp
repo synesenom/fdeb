@@ -79,7 +79,7 @@ void Graph::read(std::string nodesFile_, std::string edgesFile_)
     {
         f.get_text(line, 1024);
         sscanf(line, "%s %lg %lg", labelCh, &x, &y);
-        _nodes.insert(std::pair<std::string, Node>(std::string(labelCh), Node(x, -y)));
+        _nodes.insert(std::pair<std::string, Node>(std::string(labelCh), Node(x, y)));
     }
     _log.i("read", "number of nodes: %i", (int)_nodes.size());
     f.close();
@@ -101,8 +101,9 @@ void Graph::read(std::string nodesFile_, std::string edgesFile_)
         sscanf(line, "%s %s %lg", src, dst, &w);
         if( w > _weightThreshold )
         {
-            _edges.push_back(Edge(_nodes[std::string(src)]._pos,
-                             _nodes[std::string(dst)]._pos, w + 1.0));
+            _edges.push_back(Edge(std::string(src), std::string(dst),
+                                  _nodes[std::string(src)]._pos,
+                                  _nodes[std::string(dst)]._pos, w + 1.0));
             wmax = w > wmax ? w : wmax;
         }
         _nodes[std::string(src)]._degree++;
@@ -169,6 +170,9 @@ void Graph::build_compatibility_lists()
                 compEdgePairs++;
             }
         }
+
+        if( edgesNum >= 100 && i%(edgesNum/100) == 0 )
+            _log.i( "build_compatibility_lists", "%i%%", i/(edgesNum/100) );
     }
     _log.i("build_compatibility_lists", "compatible edge pairs: %i", compEdgePairs);
 }
@@ -288,6 +292,8 @@ void Graph::print_json(std::string output_)
     for( int i=0; i<numEdges; i++ )
     {
         fprintf( p, "    {\n" );
+        fprintf( p, "      \"source\" : \"%s\",\n", _edges[i]._sourceLabel.c_str() );
+        fprintf( p, "      \"target\" : \"%s\",\n", _edges[i]._targetLabel.c_str() );
         fprintf( p, "      \"coords\" : [\n" );
         fprintf( p, "        { \"x\" : %lg, \"y\" : %lg },\n",
                  _edges[i]._start.x(), _edges[i]._start.y() );
@@ -310,5 +316,10 @@ void Graph::print_json(std::string output_)
     fclose( p );
 
     _log.i("print_json", "network is written in '%s'", output_.c_str());
+}
+
+void Graph::print_svg(std::string output_)
+{
+    //TODO
 }
 

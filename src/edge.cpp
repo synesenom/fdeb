@@ -1,5 +1,18 @@
 #include "edge.hpp"
 
+Edge::Edge(std::string sourceLabel_, std::string targetLabel_,
+           meerkat::mk_vector2 &start_, meerkat::mk_vector2 &end_,
+           double width_)
+{
+    _sourceLabel = sourceLabel_;
+    _targetLabel = targetLabel_;
+    _start = start_;
+    _end = end_;
+    _width = width_;
+    arrange_direction();
+    add_subdivisions();
+}
+
 meerkat::mk_vector2 Edge::center(meerkat::mk_vector2 &p1_, meerkat::mk_vector2 &p2_)
 {
     return (p1_+p2_)/2.0;
@@ -239,13 +252,6 @@ double Edge::visibility_compability(Edge &edge1_, Edge &edge2_)
                     edge_visibility(edge2_, edge1_));
 }
 
-Edge::Edge(meerkat::mk_vector2 &start_, meerkat::mk_vector2 &end_, double width_)
-{
-    _start = start_;
-    _end = end_;
-    _width = width_;
-    arrange_direction();
-    add_subdivisions();
-}
+
 
 

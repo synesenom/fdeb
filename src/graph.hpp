@@ -143,6 +143,12 @@ public:
      * @param output_ Name of output file.
      */
     void print_json(std::string output_);
+
+    /**
+     * @brief print_svg Prints network in SVG format.
+     * @param output_ Name of output file.
+     */
+    void print_svg(std::string output_);
 };
 
 #endif // GRAPH_HPP

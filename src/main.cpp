@@ -7,7 +7,7 @@
 #define DEFAULT_SIZE 600
 
 Graph gGraph;
-std::string gOutput = "";
+std::string gJson = "";
 
 void init( meerkat::mk_vector2 bottomLeft_,
            meerkat::mk_vector2 topRight_ )
@@ -57,7 +57,8 @@ void timer( int var_ )
         else
         {
             gGraph.smooth();
-            gGraph.print_json(gOutput);
+            if( gJson != "" )
+                gGraph.print_json(gJson);
         }
     }
     display();
@@ -72,20 +73,20 @@ int main( int argc_, char **argv_ )
                           "File containing node positions", "", MK_REQUIRED);
     a.add_argument_entry( "edges", MK_VALUE, "--edges", "-e",
                           "File containing edges", "", MK_REQUIRED);
-    a.add_argument_entry( "output", MK_VALUE, "--output", "-o",
-                          "Output file", "", MK_REQUIRED);
+    a.add_argument_entry( "json", MK_VALUE, "--json", "-json",
+                          "Prints result in a JSON file [unset].", "", MK_OPTIONAL);
     a.add_argument_entry( "K", MK_VALUE, "--K", "-K",
                           "Edge stiffness [0.1]", "0.1", MK_OPTIONAL);
     a.add_argument_entry( "S", MK_VALUE, "--S", "-S",
-                          "Initial value of S [0.1]", "0.1", MK_OPTIONAL);
+                          "Initial value of S [0.4]", "0.4", MK_OPTIONAL);
     a.add_argument_entry( "I", MK_VALUE, "--I", "-i",
                           "Initial number of iterations [90]", "90", MK_OPTIONAL);
     a.add_argument_entry( "compat", MK_VALUE, "--compat", "-c",
-                          "Compatibility threshold [0.05]", "0.05", MK_OPTIONAL);
+                          "Compatibility threshold [0.6]", "0.6", MK_OPTIONAL);
     a.add_argument_entry( "cycles", MK_VALUE, "--cycles", "-C",
-                          "Max number of cycles [8]", "8", MK_OPTIONAL);
+                          "Max number of cycles [5]", "5", MK_OPTIONAL);
     a.add_argument_entry( "sigma", MK_VALUE, "--sigma", "-s",
-                          "Smoothing width [30]", "30", MK_OPTIONAL);
+                          "Smoothing width [3]", "3", MK_OPTIONAL);
     a.add_argument_entry( "weight threshold", MK_VALUE, "--weight-threshold", "-w",
                           "Edge weight threshold [0.0]", "0.0", MK_OPTIONAL);
     a.add_argument_entry( "epsilon", MK_VALUE, "--epsilon", "-E",
@@ -128,7 +129,8 @@ int main( int argc_, char **argv_ )
                 a.get_string_argument("edges"));
 
     // Get output name
-    gOutput = a.get_string_argument("output");
+    if( a.is_set("json") )
+        gJson = a.get_string_argument("json");
 
     // If visualization is enabled
     if( a.is_set("visualization") )
@@ -158,7 +160,7 @@ int main( int argc_, char **argv_ )
         // Increase cycle index and enter main loop
         glutDisplayFunc( display );
         glutKeyboardFunc( keyboard );
-        glutTimerFunc( 100, timer, 1 );
+        glutTimerFunc( 10, timer, 1 );
         glutMainLoop();
     }
     // Otherwise, just perform edge bundling
@@ -170,7 +172,8 @@ int main( int argc_, char **argv_ )
             gGraph.add_subvisions();
         } while( gGraph.update_cycle() > 0 );
         gGraph.smooth();
-        gGraph.print_json(gOutput);
+        if( gJson != "" )
+            gGraph.print_json(gJson);
     }
 
     return 0;

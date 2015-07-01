@@ -2,6 +2,7 @@
 #define EDGE_HPP
 
 #include <vector>
+#include <string>
 #include "meerkat_vector2.hpp"
 #include "GLUT/glut.h"
 #include"math.h"
@@ -17,6 +18,8 @@ double gauss_weight(int dist_, double sigma_);
 struct Edge
 {
     // Variables
+    std::string _sourceLabel;                       // Label of source node.
+    std::string _targetLabel;                       // Label of target node.
     meerkat::mk_vector2 _start;                     // Start point.
     meerkat::mk_vector2 _end;                       // End point.
     std::vector<meerkat::mk_vector2> _subdivs;      // Subdivision points.
@@ -26,11 +29,15 @@ struct Edge
     /**
      * @brief Edge Constructor.
      * Sets end points, arranges direction and adds first subdivision point.
-     * @param start_ Start coordinates.
-     * @param end_   End coordinates.
-     * @param width_ Edge width.
+     * @param sourceLabel_ Source node label.
+     * @param targetLabel_ Target node label.
+     * @param start_       Start coordinates.
+     * @param end_         End coordinates.
+     * @param width_       Edge width.
      */
-    Edge(meerkat::mk_vector2 &start_, meerkat::mk_vector2 &end_, double width_);
+    Edge(std::string sourceLabel_, std::string targetLabel_,
+         meerkat::mk_vector2 &start_, meerkat::mk_vector2 &end_,
+         double width_);
 
     /**
      * @brief add_subdivisions Adds subdivision points.

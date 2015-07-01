@@ -9,13 +9,13 @@ Force-directed edge bundling for undirected networks
 :Version: 0.1
 :License: MIT
 
-This program implements the force-directed edge bundling algorithm of Holten and van Wijk [1]_.
+This program implements the force-directed edge bundling algorithm of Holten and van Wijk in C++ [1]_.
 
 
 Requirements
 ============
 
-OpenGL, which is already available on most systems.
+OpenGL, which is already available on most systems and a recent g++ compiler.
 
 
 Compilation
@@ -46,6 +46,12 @@ Output file
 ===========
 
 Network in JSON format. Nodes have three keys (label, x, y), edges have only the coordinates of the subdivision points.
+
+
+TODO
+====
+
+SVG support for output.
 
 
 Bibliography
