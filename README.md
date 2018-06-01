@@ -41,5 +41,5 @@ The graphs in [2] were generated using `fdeb` ([open version](https://arxiv.org/
 
 ## bibliography
 [1] Danny Holten and Jarke van Wijk: Force-Directed Edge Bundling for Graph
-	   Visualization. *Computer Graphics Forum* (Blackwell Publishing Ltd) 28, no. 3 (2009): 983-990.
-[2] http://rsif.royalsocietypublishing.org/content/15/138/20170783 
+	   Visualization. *Computer Graphics Forum* (Blackwell Publishing Ltd) 28, no. 3 (2009): 983-990.  
+[2] Enys Mones, Arkadiusz Stopczynski, Alex ‘Sandy’ Pentland, Nathaniel Hupert, Sune Lehmann: Optimizing targeted vaccination across cyber–physical networks: an empirically based mathematical simulation study. *Journal of The Royal Society Interface* 15 (138) (2018)
